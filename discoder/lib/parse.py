@@ -20,6 +20,18 @@ def probe(text):
             ffprobe -v quiet [-show_format] [-show_streams] filename
 
         :type text: str
+        
+        Input:
+        ------
+        [TAG]
+        data_x=1
+        data_y=2
+        INFO:data_z=3
+        [/TAG]
+
+        Output:
+        -------
+        {'tag': [{'data_x': 1, 'data_y': 2, 'info': {'data_z': 3}}]}
     """
     blocks = Obj()
     this = None
