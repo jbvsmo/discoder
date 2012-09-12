@@ -1,8 +1,11 @@
+# coding: utf-8
 """
     Create command line lists to run conversion and information tools
+    Author: João Bernardo Oliveira
 """
 from __future__ import division
 import os.path
+import itertools as it
 
 __author__ = 'jb'
 __metaclass__ = type
@@ -30,22 +33,41 @@ def probe(filename, format=True, streams=True, packets=False, tool=info_tool):
     return cmd
 
 
-def calculate_chunks(length, min_time, max_num):
+def calculate_chunks(length, max_num, min_time):
     """ Calculate the video chunks sizes in order to split a file in a
         certain amount of small files depending on its length and maximum number
         of transcoding boxes available.
 
         :param length: The video length in seconds
         :type length: int
+        :param max_num: The maximum amount of chunks that should be created.
+        :type max_num: int
         :param min_time: The minimal amount of time in seconds to create
                a video chunk.
         :type min_time: int
-        :param max_num: The maximum amount of chunks that should be created.
-        :type max_num: int
-        :return: list<tuple<2,int>>
+        :return: list<tuple<int, 2>>
     """
-    # TODO
+    if length < max_num * min_time:
+        # min_x is limiting
+        parts = length // min_time
+    else:
+        # max_n is limiting
+        parts = max_num
 
+    size, extra = divmod(length, parts)
+
+    # Add one extra second for each part until there's no more remainder.
+    extras = it.chain(it.repeat(1, extra), it.repeat(0))
+    i = 0
+    elements = []
+    while i < length:
+        e = next(extras)
+        elements.append( (i, i + size + e) )
+        i += size + e
+
+    # The last element has to be None to avoid cutting fractions of seconds.
+    elements[-1] = elements[-1][0], None
+    return elements
 
 
 def split(filename, chunks, output=None, tool=conv_tool):
