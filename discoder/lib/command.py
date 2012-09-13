@@ -19,8 +19,8 @@ def probe(filename, format=True, streams=True, packets=False, tool=info_tool):
         The output can be parsed with `discoder.lib.parse.probe`.
 
         :type filename: str
-        :type tool: str
-        :return: list
+        :param tool: Information tool. E.g. "ffprobe"
+        :return list<str>
     """
     cmd = [tool, '-v', 'quiet']
     if format:
@@ -105,8 +105,7 @@ def split(filename, chunks, output=None, tool=conv_tool):
     return cmd
 
 def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
-    """
-        Generate commands for separating mp4 file with only video stream
+    """ Generate commands for separating mp4 file with only video stream
         and a m4a audio file.
 
         :type filename: str
@@ -134,3 +133,37 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
     cmds.append(base + ['-an', output.format('video', v)])
 
     return cmds
+
+def join_cat(filenames):
+    """ Join the mpg files with cat
+
+        :type filenames:list
+        :return <list<str>>
+    """
+    return ['cat'] + filenames
+
+def transform_mpg(filenames, ext='mpg', tool=conv_tool):
+    """ Transform mp4 files as mpg to allow joining them with cat.
+
+        :type filenames: list
+        :param ext: `MPG` extension
+        :param tool: Transcoding tool. E.g. "ffmpeg"
+        :return:list<list<str>>
+    """
+    base = [tool, '-vcodec', 'copy', '-acodec', 'copy', '-i']
+    cmds = []
+    for name in filenames:
+        newname, ext_ = os.path.splitext(name)
+        cmds.append(base + [name, newname + '.' + ext])
+    return cmds
+
+def transform_mp4(filename, ext=av_extensions[1], tool=conv_tool):
+    """ Transforms a MPG file in MP4 without transcoding.
+
+        :type filename: str
+        :param ext: MP4 extension
+        :param tool: Transcoding tool. E.g. "ffmpeg"
+        :return list<str>
+    """
+    name, ext_ = os.path.splitext(filename)
+    return [tool, '-i', filename, '-vcodec', 'copy', '-acodec', 'copy', name + '.' + ext]
