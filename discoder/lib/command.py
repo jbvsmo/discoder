@@ -48,13 +48,16 @@ def calculate_chunks(length, max_num, min_time):
         :return: list<tuple<int, 2>>
     """
     if length < max_num * min_time:
-        # min_x is limiting
+        # min_time is limiting
         parts = length // min_time
     else:
-        # max_n is limiting
+        # max_num is limiting
         parts = max_num
 
-    size, extra = divmod(length, parts)
+    if parts:
+        size, extra = divmod(length, parts)
+    else:
+        size, extra = length, 0
 
     # Add one extra second for each part until there's no more remainder.
     extras = it.chain(it.repeat(1, extra), it.repeat(0))
@@ -62,7 +65,7 @@ def calculate_chunks(length, max_num, min_time):
     elements = []
     while i < length:
         e = next(extras)
-        elements.append( (i, i + size + e) )
+        elements.append((i, i + size + e))
         i += size + e
 
     # The last element has to be None to avoid cutting fractions of seconds.
