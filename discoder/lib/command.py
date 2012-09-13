@@ -12,6 +12,7 @@ __metaclass__ = type
 
 conv_tool = 'ffmpeg'
 info_tool = 'ffprobe'
+av_extensions = ('m4a', 'mp4')
 
 def probe(filename, format=True, streams=True, packets=False, tool=info_tool):
     """ Mount the command line for `ffprobe` or `avprobe`.
@@ -72,7 +73,6 @@ def calculate_chunks(length, max_num, min_time):
     elements[-1] = elements[-1][0], None
     return elements
 
-
 def split(filename, chunks, output=None, tool=conv_tool):
     """ Create a list of command lines to divide a video file into
         smaller chunks of aproximately same size.
@@ -82,22 +82,55 @@ def split(filename, chunks, output=None, tool=conv_tool):
                element where the number of the chunk will be placed. If this
                parameter is None, the number will be placed before the extension
                of the filename: file.mp4 -> file_1.mp4, file_2.mp4 ...
+        :type output: str
         :param chunks: List of 2-tuples with start and stop times (in seconds)
                to realize cuts. The `stop` value may be None to go to the end
                of the video.
-        :param tool:
-        :return: list<list<str>>
+        :param tool: Transcoding tool. E.g. "ffmpeg"
+        :return list<list<str>>
     """
     if output is None:
         name, ext = os.path.splitext(filename)
         output = name + '_{0}' + ext
 
-    base = [tool, '-vcodec', 'copy', '-acodec', 'copy']
+    base = [tool, '-i', filename, '-vcodec', 'copy', '-acodec', 'copy']
     cmd = []
     for i, (start, stop) in enumerate(chunks):
         chunk = base + ['-ss', str(start)]
         if stop:
-            chunk.extend(('-t', str(stop)))
-        chunk.extend(('-i', filename, output.format(i)))
+            # -t is "time duration" and not "stop time"!
+            chunk.extend(('-t', str(stop - start)))
+        chunk.append(output.format(i))
         cmd.append(chunk)
     return cmd
+
+def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
+    """
+        Generate commands for separating mp4 file with only video stream
+        and a m4a audio file.
+
+        :type filename: str
+        :param output: The output filename with a positional formatting `{0}`
+               element either "audio" or "video" will be placed. Also, a positional
+               `{1}` element to add the extensions.
+        :type output: str
+        :param exts: Extentions for audio and video files. AAC and MP4 by default
+        :type
+        :param tool: Transcoding tool. E.g. "ffmpeg"
+        :return list<list<str>>
+    """
+    a, v = exts
+    base = [tool, '-i', filename]
+    cmds = []
+
+    if output is None:
+        name, ext = os.path.splitext(filename)
+        output = name + '_{0}.{1}'
+
+    # Remove Video
+    cmds.append(base + ['-vn', output.format('audio', a)])
+
+    # Remove Audio
+    cmds.append(base + ['-an', output.format('video', v)])
+
+    return cmds

@@ -3,11 +3,14 @@ __author__ = 'jb'
 import unittest
 from discoder.lib import command
 
+# Check if there's no explicit call to `ffmpeg` or others
+tool = 'test_tool_name'
+
 class CommandTest(unittest.TestCase):
+
 
     def test_probe(self):
         name = 'test.mp4'
-        tool = command.info_tool
         cmd = command.probe(name, tool=tool)
 
         self.assertEqual(cmd[:3], [tool, '-v', 'quiet'])
@@ -25,4 +28,16 @@ class CommandTest(unittest.TestCase):
     @unittest.skip(NotImplemented)
     def test_split(self):
         pass
+
+
+    def test_separate(self):
+        cmd = command.separate('test.mp4', tool=tool)
+        self.assertEqual(len(cmd), 2)
+
+        a, v = cmd
+        self.assertEqual(a[0], tool)
+        self.assertEqual(v[0], tool)
+
+        self.assertEqual(a[-1], 'test_audio.m4a')
+        self.assertEqual(v[-1], 'test_video.mp4')
 
