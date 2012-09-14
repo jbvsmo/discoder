@@ -8,6 +8,10 @@ tool = 'test_tool_name'
 
 class CommandTest(unittest.TestCase):
 
+    def test_base_cmd(self):
+        b = command.base_cmd
+        self.assertEqual(b('A', 'B'), ['A', '-i', 'B', '-y'])
+        self.assertEqual(b('A', 'B', False), ['A', '-i', 'B'])
 
     def test_probe(self):
         name = 'test.mp4'
@@ -28,7 +32,6 @@ class CommandTest(unittest.TestCase):
     @unittest.skip(NotImplemented)
     def test_split(self):
         pass
-
 
     def test_separate(self):
         cmd = command.separate('test.mp4', tool=tool)

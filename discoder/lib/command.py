@@ -14,6 +14,21 @@ conv_tool = 'ffmpeg'
 info_tool = 'ffprobe'
 av_extensions = ('m4a', 'mp4')
 
+def base_cmd(tool, filename, yes=True):
+    """ Basic command for transcoding tool (`ffmpeg` or `avconv`).
+        Sets the filename and the yes information for preventing the
+        program wait for the user to write "yes" or "no".
+
+        :param tool: Transcoding tool. E.g. "ffmpeg"
+        :type filename: str
+        :type yes: bool
+        :return list<str>
+    """
+    cmd = [tool, '-i', filename, '-y']
+    if not yes:
+        cmd.pop()
+    return cmd
+
 def probe(filename, format=True, streams=True, packets=False, tool=info_tool):
     """ Mount the command line for `ffprobe` or `avprobe`.
         The output can be parsed with `discoder.lib.parse.probe`.
@@ -93,7 +108,7 @@ def split(filename, chunks, output=None, tool=conv_tool):
         name, ext = os.path.splitext(filename)
         output = name + '_{0}' + ext
 
-    base = [tool, '-i', filename, '-vcodec', 'copy', '-acodec', 'copy']
+    base = base_cmd(tool, filename) + ['-vcodec', 'copy', '-acodec', 'copy']
     cmd = []
     for i, (start, stop) in enumerate(chunks):
         chunk = base + ['-ss', str(start)]
@@ -119,7 +134,7 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
         :return list<list<str>>
     """
     a, v = exts
-    base = [tool, '-i', filename]
+    base = base_cmd(tool, filename)
     cmds = []
 
     if output is None:
@@ -150,11 +165,11 @@ def transform_mpg(filenames, ext='mpg', tool=conv_tool):
         :param tool: Transcoding tool. E.g. "ffmpeg"
         :return:list<list<str>>
     """
-    base = [tool, '-vcodec', 'copy', '-acodec', 'copy', '-i']
+    base = ['-vcodec', 'copy', '-acodec', 'copy']
     cmds = []
     for name in filenames:
         newname, ext_ = os.path.splitext(name)
-        cmds.append(base + [name, newname + '.' + ext])
+        cmds.append(base_cmd(tool, name) + base + [newname + '.' + ext])
     return cmds
 
 def transform_mp4(filename, ext=av_extensions[1], tool=conv_tool):
