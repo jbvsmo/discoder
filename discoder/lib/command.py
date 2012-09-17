@@ -6,6 +6,7 @@
 from __future__ import division
 import os.path
 import itertools as it
+from discoder.lib.helper import seconds_to_time
 
 __author__ = 'jb'
 __metaclass__ = type
@@ -29,7 +30,7 @@ def base_cmd(tool, filename, yes=True):
         cmd.pop()
     return cmd
 
-def probe(filename, format=True, streams=True, packets=False, tool=info_tool):
+def probe(filename, format=True, streams=True, packets=False, json=False, tool=info_tool):
     """ Mount the command line for `ffprobe` or `avprobe`.
         The output can be parsed with `discoder.lib.parse.probe`.
 
@@ -38,6 +39,8 @@ def probe(filename, format=True, streams=True, packets=False, tool=info_tool):
         :return list<str>
     """
     cmd = [tool, '-v', 'quiet']
+    if json:
+        cmd.extend(('-print_format', 'json'))
     if format:
         cmd.append('-show_format')
     if streams:
@@ -108,13 +111,16 @@ def split(filename, chunks, output=None, tool=conv_tool):
         name, ext = os.path.splitext(filename)
         output = name + '_{0}' + ext
 
-    base = base_cmd(tool, filename) + ['-vcodec', 'copy', '-acodec', 'copy']
+    base = base_cmd(tool, filename)
+    base_opt = ['-vcodec', 'copy', '-acodec', 'copy']
     cmd = []
     for i, (start, stop) in enumerate(chunks):
-        chunk = base + ['-ss', str(start)]
-        if stop:
+        chunk = base + ['-ss', seconds_to_time(start)]
+        if stop is not None:
             # -t is "time duration" and not "stop time"!
-            chunk.extend(('-t', str(stop - start)))
+            duration = seconds_to_time(stop - start)
+            chunk.extend(('-t', duration))
+        chunk.extend(base_opt)
         chunk.append(output.format(i))
         cmd.append(chunk)
     return cmd
@@ -181,4 +187,4 @@ def transform_mp4(filename, ext=av_extensions[1], tool=conv_tool):
         :return list<str>
     """
     name, ext_ = os.path.splitext(filename)
-    return [tool, '-i', filename, '-vcodec', 'copy', '-acodec', 'copy', name + '.' + ext]
+    return base_cmd(tool, filename) + ['-vcodec', 'copy', '-acodec', 'copy', name + '.' + ext]
