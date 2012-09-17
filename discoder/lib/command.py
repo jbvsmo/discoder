@@ -155,6 +155,15 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
 
     return cmds
 
+def conv_original(filename, vcodec, acodec, ext='mp4', output=None, tool=conv_tool):
+    if output is None:
+        name, ext_ = os.path.splitext(filename)
+        output = name + '_{0}.{1}'
+
+    return base_cmd(tool, filename) + ['-strict', 'experimental', '-sameq',
+                                       '-vcodec', vcodec, '-acodec', acodec,
+                                       output.format('orig', ext)]
+
 def join_cat(filenames):
     """ Join the mpg files with cat
 
