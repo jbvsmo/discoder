@@ -43,7 +43,11 @@ def probe(text):
             if this is not None:
                 raise ParseError('Opened block without closing last one: {0}: {1}'.format(i, line))
             this = Obj()
-            blocks.setdefault(open_block.group(1).lower(), []).append(this)
+            name = open_block.group(1).lower()
+            if name != 'format': # "format" only has one element.
+                blocks.setdefault(name, []).append(this)
+            else:
+                blocks[name] = this
         else:
             if this is None:
                 raise ParseError("There's no block to insert data or close: {0}: {1}".format(i, line))
