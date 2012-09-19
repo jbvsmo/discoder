@@ -25,9 +25,9 @@ def base_cmd(tool, filename, yes=True):
         :type yes: bool
         :return list<str>
     """
-    cmd = [tool, '-i', filename, '-y']
+    cmd = [tool, '-y', '-i', filename]
     if not yes:
-        cmd.pop()
+        cmd.pop(1)
     return cmd
 
 def probe(filename, format=True, streams=True, packets=False, json=False, tool=info_tool):
@@ -148,10 +148,10 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
         output = name + '_{0}.{1}'
 
     # Remove Video
-    cmds.append(base + ['-vn', output.format('audio', a)])
+    cmds.append(base + ['-acodec', 'copy', '-vn', output.format('audio', a)])
 
     # Remove Audio
-    cmds.append(base + ['-an', output.format('video', v)])
+    cmds.append(base + ['-vcodec', 'copy', '-an', output.format('video', v)])
 
     return cmds
 
