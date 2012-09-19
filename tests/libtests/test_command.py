@@ -10,7 +10,7 @@ class CommandTest(unittest.TestCase):
 
     def test_base_cmd(self):
         b = command.base_cmd
-        self.assertEqual(b('A', 'B'), ['A', '-i', 'B', '-y'])
+        self.assertEqual(b('A', 'B'), ['A', '-y', '-i', 'B'])
         self.assertEqual(b('A', 'B', False), ['A', '-i', 'B'])
 
     def test_probe(self):
@@ -35,12 +35,12 @@ class CommandTest(unittest.TestCase):
 
     def test_separate(self):
         cmd = command.separate('test.mp4', tool=tool)
-        self.assertEqual(len(cmd), 2)
+        self.assertEqual(len(cmd), 1) #only the audio
 
-        a, v = cmd
+        a, = cmd
         self.assertEqual(a[0], tool)
-        self.assertEqual(v[0], tool)
+        #self.assertEqual(v[0], tool)
 
         self.assertEqual(a[-1], 'test_audio.m4a')
-        self.assertEqual(v[-1], 'test_video.mp4')
+        #self.assertEqual(v[-1], 'test_video.mp4')
 

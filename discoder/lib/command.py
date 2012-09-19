@@ -13,7 +13,8 @@ __metaclass__ = type
 
 conv_tool = 'ffmpeg'
 info_tool = 'ffprobe'
-av_extensions = ('m4a', 'mp4')
+av_extensions = 'm4a', 'mp4'
+av_codec = 'aac', 'libx264'
 
 def base_cmd(tool, filename, yes=True):
     """ Basic command for transcoding tool (`ffmpeg` or `avconv`).
@@ -91,37 +92,26 @@ def calculate_chunks(length, max_num, min_time):
     elements[-1] = elements[-1][0], None
     return elements
 
-def split(filename, chunks, output=None, tool=conv_tool):
+def split(length, max_num, min_time):
     """ Create a list of command lines to divide a video file into
         smaller chunks of aproximately same size.
 
-        :type filename: str
-        :param output: The output filename with a positional formatting `{0}`
-               element where the number of the chunk will be placed. If this
-               parameter is None, the number will be placed before the extension
-               of the filename: file.mp4 -> file_1.mp4, file_2.mp4 ...
-        :type output: str
-        :param chunks: List of 2-tuples with start and stop times (in seconds)
-               to realize cuts. The `stop` value may be None to go to the end
-               of the video.
-        :param tool: Transcoding tool. E.g. "ffmpeg"
+        generate the chunks from list of 2-tuples with start and stop times (in seconds)
+        to realize cuts. The `stop` value may be None to go to the end
+        of the video.
         :return list<list<str>>
     """
-    if output is None:
-        name, ext = os.path.splitext(filename)
-        output = name + '_{0}' + ext
+    chunks = calculate_chunks(length, max_num, min_time)
 
-    base = base_cmd(tool, filename)
-    base_opt = ['-vcodec', 'copy', '-acodec', 'copy']
+    base_opt = ['-an'] #Remove the audio at the convert pass
     cmd = []
     for i, (start, stop) in enumerate(chunks):
-        chunk = base + ['-ss', seconds_to_time(start)]
+        chunk = ['-ss', seconds_to_time(start)]
         if stop is not None:
             # -t is "time duration" and not "stop time"!
             duration = seconds_to_time(stop - start)
             chunk.extend(('-t', duration))
         chunk.extend(base_opt)
-        chunk.append(output.format(i))
         cmd.append(chunk)
     return cmd
 
@@ -151,18 +141,49 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
     cmds.append(base + ['-acodec', 'copy', '-vn', output.format('audio', a)])
 
     # Remove Audio
-    cmds.append(base + ['-vcodec', 'copy', '-an', output.format('video', v)])
+    # No need to remove audio
+    #cmds.append(base + ['-vcodec', 'copy', '-an', output.format('video', v)])
 
     return cmds
 
-def conv_original(filename, vcodec, acodec, ext='mp4', output=None, tool=conv_tool):
+def convert(filename, flavor, base=(), vcodec=av_codec[1], acodec=av_codec[0],
+            ext='mp4', output=None, tool=conv_tool):
+    """
+
+    :param filename:
+    :param base: Part of command with specific configurations to be added
+           after the input element. E.x. seek options, remove audio...
+    :param output: The output filename with a positional formatting `{0}`
+               element where the number of the chunk will be placed. If this
+               parameter is None, the number will be placed before the extension
+               of the filename: file.mp4 -> file_1.mp4, file_2.mp4 ...
+    :param flavor: Dictionary with data to convert a video. All optional.
+            {"name": flavor_name,
+             "bitrate": (video_bitrate, audio_bitrate),
+             "resolution": (width, height)}
+    :return:
+    """
+    cmd = base_cmd(tool, filename) + list(base) + \
+          ['-strict', 'experimental', '-flags', '+cgop',
+           '-vcodec', vcodec, '-acodec', acodec]
+
+    bitrate = flavor.get('bitrate')
+    if bitrate:
+        bv, ba = bitrate
+        cmd.extend(('-b:v', bv, '-b:a', ba))
+    else:
+        cmd.append('-sameq')
+
+    resolution = flavor.get('resolution')
+    if resolution:
+        cmd.extend(('-s', '{0}x{1}'.format(*resolution)))
+
     if output is None:
         name, ext_ = os.path.splitext(filename)
         output = name + '_{0}.{1}'
 
-    return base_cmd(tool, filename) + ['-strict', 'experimental', '-sameq',
-                                       '-vcodec', vcodec, '-acodec', acodec,
-                                       output.format('orig', ext)]
+    cmd.append(output.format(flavor.get('name', 'orig'), ext))
+    return cmd
 
 def join_cat(filenames):
     """ Join the mpg files with cat
