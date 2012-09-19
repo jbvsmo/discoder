@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import math
@@ -30,8 +31,10 @@ def run(cmd, stdout=None, stderr=None, pipe=True):
 class Transcoder:
     _probe = None
 
-    def __init__(self, filename, outdir=None):
+    def __init__(self, filename, flavors=(), outdir=None):
         self.filename = filename
+        self.parts = []
+        self.flavors = flavors
         if outdir:
             basename = os.path.basename(filename)
             name, ext = os.path.splitext(basename)
@@ -39,21 +42,62 @@ class Transcoder:
         else:
             self.out = None
 
-    @property
-    def probe(self):
+        self.files = {
+            'orig': self.conv_original(convert=False),
+            'video': None,
+            'audio': None,
+            'parts': dict.fromkeys(flavors),
+            'final': None,
+        }
+        self.orig_ok = False
+
+    def probe(self, **kw):
         if self._probe is None:
-            sout, _ = run(command.probe(self.filename))
-            self._probe = parse.probe(sout)
+            name = self.files['orig'] or self.filename
+            sout, _ = run(command.probe(name, **kw))
+            if kw.get('json'):
+                self._probe = json.loads(sout)
+            else:
+                self._probe = parse.probe(sout)
         return self._probe
+
+
+    def conv_original(self, convert=True):
+        output = None if not self.out else self.out.format('{0}', '{1}')
+        cmd = command.conv_original(self.filename, 'libx264', 'aac')
+        if convert:
+            run(cmd)
+            self.orig_ok = True
+        self.files['orig'] = cmd[-1]
+        return self.files['orig']
+
+    def separate(self):
+        output = None if not self.out else self.out.format('{0}', '.mp4')
+        cmds = command.separate(self.files['orig'], output)
+        for c in cmds:
+            run(c)
 
     def split(self, max_num, min_time):
         output = None if not self.out else self.out.format('{0}', '{1}')
 
-        duration = self.probe.stream[0].duration
+        duration = self.probe().stream[0].duration
         duration = int(math.ceil(float(duration)))
         chunks = command.calculate_chunks(duration, max_num, min_time)
 
-        cmds = command.split(self.filename, chunks, output)
+        cmds = command.split(self.files['orig'], chunks, output)
+        for c in cmds:
+            run(c)
+
+        self.parts = [c[-1] for c in cmds]
+        return self.parts
+
+
+    def join(self):
+        if not self.parts:
+            raise Exception('Nothing to join.')
+        ext = 'm2ts'
+        cmds = command.transform_mpg(self.parts, ext)
+        fnames = [c[-1] for c in cmds]
         for c in cmds:
             run(c)
 
