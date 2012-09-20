@@ -13,3 +13,4 @@ class HelperTest(unittest.TestCase):
         self.assertEqual(s(3600), '01:00:00.000')
         self.assertEqual(s(3850), '01:04:10.000')
         self.assertEqual(s(3599, 29), '00:59:59.029')
+        self.assertEqual(s(10, 5001), '00:00:15.001')
