@@ -5,7 +5,7 @@
 """
 from __future__ import division
 import os.path
-import itertools as it
+from discoder.lib import helper
 from discoder.lib.helper import seconds_to_time
 
 __author__ = 'jb'
@@ -21,10 +21,10 @@ def base_cmd(tool, filename, yes=True):
         Sets the filename and the yes information for preventing the
         program wait for the user to write "yes" or "no".
 
-        :param tool: Transcoding tool. E.g. "ffmpeg"
-        :type filename: str
-        :type yes: bool
-        :return list<str>
+    :param tool: Transcoding tool. E.g. "ffmpeg"
+    :type filename: str
+    :type yes: bool
+    :return list<str>
     """
     cmd = [tool, '-y', '-i', filename]
     if not yes:
@@ -35,9 +35,9 @@ def probe(filename, format=True, streams=True, packets=False, json=False, tool=i
     """ Mount the command line for `ffprobe` or `avprobe`.
         The output can be parsed with `discoder.lib.parse.probe`.
 
-        :type filename: str
-        :param tool: Information tool. E.g. "ffprobe"
-        :return list<str>
+    :type filename: str
+    :param tool: Information tool. E.g. "ffprobe"
+    :return list<str>
     """
     cmd = [tool, '-v', 'quiet']
     if json:
@@ -52,46 +52,6 @@ def probe(filename, format=True, streams=True, packets=False, json=False, tool=i
     cmd.append(filename)
     return cmd
 
-
-def calculate_chunks(length, max_num, min_time):
-    """ Calculate the video chunks sizes in order to split a file in a
-        certain amount of small files depending on its length and maximum number
-        of transcoding boxes available.
-
-        :param length: The video length in seconds
-        :type length: int
-        :param max_num: The maximum amount of chunks that should be created.
-        :type max_num: int
-        :param min_time: The minimal amount of time in seconds to create
-               a video chunk.
-        :type min_time: int
-        :return: list<tuple<int, 2>>
-    """
-    if length < max_num * min_time:
-        # min_time is limiting
-        parts = length // min_time
-    else:
-        # max_num is limiting
-        parts = max_num
-
-    if parts:
-        size, extra = divmod(length, parts)
-    else:
-        size, extra = length, 0
-
-    # Add one extra second for each part until there's no more remainder.
-    extras = it.chain(it.repeat(1, extra), it.repeat(0))
-    i = 0
-    elements = []
-    while i < length:
-        e = next(extras)
-        elements.append((i, i + size + e))
-        i += size + e
-
-    # The last element has to be None to avoid cutting fractions of seconds.
-    elements[-1] = elements[-1][0], None
-    return elements
-
 def split(length, max_num, min_time):
     """ Create a list of command lines to divide a video file into
         smaller chunks of aproximately same size.
@@ -99,9 +59,17 @@ def split(length, max_num, min_time):
         generate the chunks from list of 2-tuples with start and stop times (in seconds)
         to realize cuts. The `stop` value may be None to go to the end
         of the video.
-        :return list<list<str>>
+
+    :param length: The video length in seconds
+    :type length: int
+    :param max_num: The maximum amount of chunks that should be created.
+    :type max_num: int
+    :param min_time: The minimal amount of time/number of frames to create
+           a video chunk.
+    :type min_time: int
+    :return list<list<str>>
     """
-    chunks = calculate_chunks(length, max_num, min_time)
+    chunks = helper.calculate_chunks(length, max_num, min_time)
 
     base_opt = ['-an'] #Remove the audio at the convert pass
     cmd = []
@@ -119,15 +87,15 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
     """ Generate commands for separating mp4 file with only video stream
         and a m4a audio file.
 
-        :type filename: str
-        :param output: The output filename with a positional formatting `{0}`
-               element either "audio" or "video" will be placed. Also, a positional
-               `{1}` element to add the extensions.
-        :type output: str
-        :param exts: Extentions for audio and video files. AAC and MP4 by default
-        :type
-        :param tool: Transcoding tool. E.g. "ffmpeg"
-        :return list<list<str>>
+    :type filename: str
+    :param output: The output filename with a positional formatting `{0}`
+           element either "audio" or "video" will be placed. Also, a positional
+           `{1}` element to add the extensions.
+    :type output: str
+    :param exts: Extentions for audio and video files. AAC and MP4 by default
+    :type
+    :param tool: Transcoding tool. E.g. "ffmpeg"
+    :return list<list<str>>
     """
     a, v = exts
     base = base_cmd(tool, filename)
@@ -148,19 +116,19 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
 
 def convert(filename, flavor, base=(), vcodec=av_codec[1], acodec=av_codec[0],
             ext='mp4', output=None, tool=conv_tool):
-    """
+    """ Generate commands to convert a video file based on a series of flavors.
 
     :param filename:
     :param base: Part of command with specific configurations to be added
            after the input element. E.x. seek options, remove audio...
     :param output: The output filename with a positional formatting `{0}`
-               element where the number of the chunk will be placed. If this
-               parameter is None, the number will be placed before the extension
-               of the filename: file.mp4 -> file_1.mp4, file_2.mp4 ...
+           element where the number of the chunk will be placed. If this
+           parameter is None, the number will be placed before the extension
+           of the filename: file.mp4 -> file_1.mp4, file_2.mp4 ...
     :param flavor: Dictionary with data to convert a video. All optional.
-            {"name": flavor_name,
-             "bitrate": (video_bitrate, audio_bitrate),
-             "resolution": (width, height)}
+           {"name": flavor_name,
+            "bitrate": (video_bitrate, audio_bitrate),
+            "resolution": (width, height)}
     :return:
     """
     cmd = base_cmd(tool, filename) + list(base) + \
@@ -188,18 +156,18 @@ def convert(filename, flavor, base=(), vcodec=av_codec[1], acodec=av_codec[0],
 def join_cat(filenames):
     """ Join the mpg files with cat
 
-        :type filenames:list
-        :return <list<str>>
+    :type filenames:list
+    :return <list<str>>
     """
     return ['cat'] + filenames
 
 def transform_mpg(filenames, ext='mpg', tool=conv_tool):
     """ Transform mp4 files as mpg to allow joining them with cat.
 
-        :type filenames: list
-        :param ext: `MPG` extension
-        :param tool: Transcoding tool. E.g. "ffmpeg"
-        :return:list<list<str>>
+    :type filenames: list
+    :param ext: `MPG` extension
+    :param tool: Transcoding tool. E.g. "ffmpeg"
+    :return:list<list<str>>
     """
     base = ['-vcodec', 'copy', '-acodec', 'copy']
     cmds = []
@@ -211,10 +179,10 @@ def transform_mpg(filenames, ext='mpg', tool=conv_tool):
 def transform_mp4(filename, ext=av_extensions[1], tool=conv_tool):
     """ Transforms a MPG file in MP4 without transcoding.
 
-        :type filename: str
-        :param ext: MP4 extension
-        :param tool: Transcoding tool. E.g. "ffmpeg"
-        :return list<str>
+    :type filename: str
+    :param ext: MP4 extension
+    :param tool: Transcoding tool. E.g. "ffmpeg"
+    :return list<str>
     """
     name, ext_ = os.path.splitext(filename)
     return base_cmd(tool, filename) + ['-vcodec', 'copy', '-acodec', 'copy', name + '.' + ext]

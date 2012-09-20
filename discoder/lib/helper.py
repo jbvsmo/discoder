@@ -1,4 +1,5 @@
 from __future__ import division
+import itertools as it
 
 __author__ = 'jb'
 
@@ -34,3 +35,42 @@ def seek_frame(frame, fps, plus_one=False):
     tpf = 1000/fps # time per frame
     ms = round((fraction + plus_one) * tpf)
     return seconds_to_time(seconds, int(ms))
+
+def calculate_chunks(length, max_num, min_time):
+    """ Calculate the video chunks sizes in order to split a file in a
+        certain amount of small files depending on its length and maximum number
+        of transcoding boxes available.
+
+    :param length: The video length in seconds
+    :type length: int
+    :param max_num: The maximum amount of chunks that should be created.
+    :type max_num: int
+    :param min_time: The minimal amount of time/number of frames to create
+           a video chunk.
+    :type min_time: int
+    :return: list<tuple<int, 2>>
+    """
+    if length < max_num * min_time:
+        # min_time is limiting
+        parts = length // min_time
+    else:
+        # max_num is limiting
+        parts = max_num
+
+    if parts:
+        size, extra = divmod(length, parts)
+    else:
+        size, extra = length, 0
+
+    # Add one extra second for each part until there's no more remainder.
+    extras = it.chain(it.repeat(1, extra), it.repeat(0))
+    i = 0
+    elements = []
+    while i < length:
+        e = next(extras)
+        elements.append((i, i + size + e))
+        i += size + e
+
+    # The last element has to be None to avoid cutting fractions of seconds.
+    elements[-1] = elements[-1][0], None
+    return elements

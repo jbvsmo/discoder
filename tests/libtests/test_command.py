@@ -23,12 +23,6 @@ class CommandTest(unittest.TestCase):
         self.assertNotIn('-show_packets', cmd)
         self.assertEqual(cmd[-1], name)
 
-    def test_calculate_chunks(self):
-        cc = command.calculate_chunks
-        self.assertEqual(cc(10, 5, 3), [(0, 4), (4, 7), (7, None)])
-        self.assertEqual(cc(10, 5, 12), [(0, None)])
-        self.assertEqual(cc(3, 5, 0), [(0, 1), (1, 2), (2, None)])
-
     @unittest.skip(NotImplemented)
     def test_split(self):
         pass
