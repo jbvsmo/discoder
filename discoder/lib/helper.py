@@ -20,7 +20,7 @@ def seconds_to_time(num, ms=0):
     data = map(int, (hh, mm, ss, ms))
     return '{0:02}:{1:02}:{2:02}.{3:03}'.format(*data)
 
-def seek_frame(frame, fps, plus_one=False):
+def seek_frame(frame, fps, plus_one=False, raw=False):
     """ Find the seek position with second and millissecond values
         based on video framerate and amount of frames to seek.
 
@@ -33,8 +33,20 @@ def seek_frame(frame, fps, plus_one=False):
     """
     seconds, fraction = divmod(frame, fps)
     tpf = 1000/fps # time per frame
-    ms = round((fraction + plus_one) * tpf)
-    return seconds_to_time(seconds, int(ms))
+    ms = int(round((fraction + plus_one) * tpf))
+
+    if raw:
+        return seconds, ms
+    return seconds_to_time(seconds, ms)
+
+def num_frames(time, fps):
+    """ Find the amount of frames after a specified time.
+
+    :param time: Number of seconds
+    :param fps: Video FPS value
+    :return: int
+    """
+    return int(time * fps)
 
 def calculate_chunks(length, max_num, min_time):
     """ Calculate the video chunks sizes in order to split a file in a
