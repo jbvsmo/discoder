@@ -12,6 +12,9 @@ class CommandTest(unittest.TestCase):
         b = command.base_cmd
         self.assertEqual(b('A', 'B'), ['A', '-y', '-i', 'B'])
         self.assertEqual(b('A', 'B', False), ['A', '-i', 'B'])
+        self.assertEqual(b('A', 'B', pre=['C']), ['A', '-y', 'C', '-i', 'B'])
+        self.assertEqual(b('A', 'B', False, pre=['C', 'D']),
+                         ['A', 'C', 'D', '-i', 'B'])
 
     def test_probe(self):
         name = 'test.mp4'

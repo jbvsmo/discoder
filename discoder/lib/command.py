@@ -16,7 +16,7 @@ info_tool = 'ffprobe'
 av_extensions = 'm4a', 'mp4'
 av_codec = 'aac', 'libx264'
 
-def base_cmd(tool, filename, yes=True):
+def base_cmd(tool, filename, yes=True, pre=None):
     """ Basic command for transcoding tool (`ffmpeg` or `avconv`).
         Sets the filename and the yes information for preventing the
         program wait for the user to write "yes" or "no".
@@ -24,11 +24,15 @@ def base_cmd(tool, filename, yes=True):
     :param tool: Transcoding tool. E.g. "ffmpeg"
     :type filename: str
     :type yes: bool
+    :param pre: Commands to be added before the input element (-i)
     :return list<str>
     """
-    cmd = [tool, '-y', '-i', filename]
+    cmd = [tool, '-y']
     if not yes:
-        cmd.pop(1)
+        cmd.pop()
+    if pre:
+        cmd.extend(pre)
+    cmd.extend(('-i', filename))
     return cmd
 
 def probe(filename, format=True, streams=True, packets=False, json=False, tool=info_tool):
