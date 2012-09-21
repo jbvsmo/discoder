@@ -89,7 +89,6 @@ def split(length, max_num, min_time, fps=None, time_to_frames=False):
 
     base_opt = ['-an'] #Remove the audio at the convert pass
     cmd = []
-    first = None
     for i, (start, stop) in enumerate(chunks):
         if fps:
             chunk = {'-ss': helper.seek_frame(start, fps)}
@@ -102,7 +101,7 @@ def split(length, max_num, min_time, fps=None, time_to_frames=False):
                 # -t is "time duration" and not "stop time"
                 duration = helper.seconds_to_time(stop - start)
                 chunk['-t'] = duration
-        chunk['other'] = base_opt
+        chunk['other'] = list(base_opt)
         cmd.append(chunk)
     return cmd
 
