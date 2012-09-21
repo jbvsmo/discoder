@@ -44,6 +44,8 @@ def probe(text):
                 raise ParseError('Opened block without closing last one: {0}: {1}'.format(i, line))
             this = Obj()
             name = open_block.group(1).lower()
+            if name == 'stream':
+                name += 's' # compatibility with json output
             if name != 'format': # "format" only has one element.
                 blocks.setdefault(name, []).append(this)
             else:
