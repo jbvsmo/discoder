@@ -19,13 +19,13 @@ info_tool = 'ffprobe'
 av_extensions = 'm4a', 'mp4'
 av_codec = 'aac', 'libx264'
 
-def base_cmd(tool, filename, yes=True, pre=None):
+def base_cmd(tool, input, yes=True, pre=None):
     """ Basic command for transcoding tool (`ffmpeg` or `avconv`).
         Sets the filename and the yes information for preventing the
         program wait for the user to write "yes" or "no".
 
     :param tool: Transcoding tool. E.g. "ffmpeg"
-    :type filename: str
+    :param input: File name or other option (e.g. `concat`)
     :type yes: bool
     :param pre: Commands to be added before the input element (-i)
     :return list<str>
@@ -35,7 +35,7 @@ def base_cmd(tool, filename, yes=True, pre=None):
         cmd.pop()
     if pre:
         cmd.extend(pre)
-    cmd.extend(('-i', filename))
+    cmd.extend(('-i', input))
     return cmd
 
 def probe(filename, format=True, streams=True, packets=False, json=False, tool=info_tool):
@@ -162,6 +162,7 @@ def convert(filename, flavor, base=None, part=None, vcodec=av_codec[1],
            A `{1}` element must be given to add an extension name.
            If `part` parameter is not None, a `{2}` element can be given to
            add the part value to avoid multiple file with the same name.
+    :param tool: Transcoding tool. E.g. "ffmpeg"
     :return: list<str>
     """
     if base is None:
@@ -205,36 +206,33 @@ def convert(filename, flavor, base=None, part=None, vcodec=av_codec[1],
     cmd.append(output.format(flavor.get('name', 'orig'), ext, part))
     return cmd
 
-def join_cat(filenames):
+def join(filenames, output, base=(), tool=conv_tool):
     """ Join the mpg files with cat
 
-    :type filenames:list
+    :type filenames: list
+    :param output: The final video file.
+    :param base: Other commands to be added (e.g. add audio stream)
+    :param tool: Transcoding tool. E.g. "ffmpeg"
     :return <list<str>>
     """
-    return ['cat'] + filenames
+    filenames = 'concat:'  + format('|'.join(filenames))
+    cmd = base_cmd(tool, filenames)
+    cmd.extend(base)
+    cmd.extend(('-c', 'copy', output))
+    return cmd
 
-def transform_mpg(filenames, ext='mpg', tool=conv_tool):
-    """ Transform mp4 files as mpg to allow joining them with cat.
+def remove_container(filenames, ext='h264', tool=conv_tool):
+    """ Transform mp4 files as raw h264 files to allow joining them with concat.
 
     :type filenames: list
-    :param ext: `MPG` extension
+    :param ext: `h264` extension
     :param tool: Transcoding tool. E.g. "ffmpeg"
     :return:list<list<str>>
     """
-    base = ['-vcodec', 'copy', '-acodec', 'copy']
+    _ = 'ffmpeg -i d_orig_0.mp4 -c copy o0.h264'
+    base = ['-c', 'copy', '-bsf:v', 'h264_mp4toannexb']
     cmds = []
     for name in filenames:
         newname, ext_ = os.path.splitext(name)
         cmds.append(base_cmd(tool, name) + base + [newname + '.' + ext])
     return cmds
-
-def transform_mp4(filename, ext=av_extensions[1], tool=conv_tool):
-    """ Transforms a MPG file in MP4 without transcoding.
-
-    :type filename: str
-    :param ext: MP4 extension
-    :param tool: Transcoding tool. E.g. "ffmpeg"
-    :return list<str>
-    """
-    name, ext_ = os.path.splitext(filename)
-    return base_cmd(tool, filename) + ['-vcodec', 'copy', '-acodec', 'copy', name + '.' + ext]

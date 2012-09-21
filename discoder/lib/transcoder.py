@@ -35,6 +35,7 @@ class Transcoder:
         self.filename = filename
         self.flavors = flavors
         self.outdir = outdir
+        self.parts = []
         if outdir:
             basename = os.path.basename(filename)
             name, ext = os.path.splitext(basename)
@@ -113,4 +114,23 @@ class Transcoder:
         for c in cmds:
             run(c)
 
-        return [self.as_t(c[-1]) for c in cmds]
+        self.parts = [c[-1] for c in cmds]
+        return [self.as_t(p) for p in self.parts]
+
+    def join(self, remove_files=True):
+        if not self.parts:
+            raise Exception('Nothing to join.')
+
+        cmds = command.remove_container(self.parts)
+        for c in cmds:
+            run(c)
+        names = [c[-1] for c in cmds]
+
+        output, ext = os.path.splitext(self.filename)
+        output += '_final' + ext
+
+        run(command.join(names, output))
+
+        if remove_files:
+            for f in self.parts + names:
+                os.remove(f)
