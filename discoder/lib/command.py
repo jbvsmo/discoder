@@ -6,10 +6,13 @@
 from __future__ import division
 import os.path
 from discoder.lib import helper
-from discoder.lib.helper import seconds_to_time
 
 __author__ = 'jb'
 __metaclass__ = type
+
+# Ability to seek before (fast) and after (accurate)
+# the input stream on video conversions
+FANCY_SEEK = False
 
 conv_tool = 'ffmpeg'
 info_tool = 'ffprobe'
@@ -56,13 +59,14 @@ def probe(filename, format=True, streams=True, packets=False, json=False, tool=i
     cmd.append(filename)
     return cmd
 
-def split(length, max_num, min_time):
+def split(length, max_num, min_time, fps=None, time_to_frames=False):
     """ Create a list of command lines to divide a video file into
-        smaller chunks of aproximately same size.
+        smaller chunks of aproximately same size. This command will
+        also remove the audio track.
 
-        generate the chunks from list of 2-tuples with start and stop times (in seconds)
-        to realize cuts. The `stop` value may be None to go to the end
-        of the video.
+        generate the chunks from list of 2-tuples with start and stop times
+        (in seconds) to realize cuts. The `stop` value may be None to go to
+        the end of the video.
 
     :param length: The video length in seconds
     :type length: int
@@ -70,20 +74,35 @@ def split(length, max_num, min_time):
     :type max_num: int
     :param min_time: The minimal amount of time/number of frames to create
            a video chunk.
+    :param fps: If `length` is given in frames, this should be set to the
+           video FPS value
+    :param time_to_frames: If `min_time` is given in seconds and length is
+           given in frames, this parameter should be True to convert
+           the `min_time` to desired number of frames.
     :type min_time: int
-    :return list<list<str>>
+    :return list<dict<str: data>> [{'-ss': ..., 'other': [...]}, ...]
     """
+    if time_to_frames:
+        min_time = helper.num_frames(min_time, fps)
+
     chunks = helper.calculate_chunks(length, max_num, min_time)
 
     base_opt = ['-an'] #Remove the audio at the convert pass
     cmd = []
+    first = None
     for i, (start, stop) in enumerate(chunks):
-        chunk = ['-ss', seconds_to_time(start)]
+        if fps:
+            chunk = {'-ss': helper.seek_frame(start, fps)}
+        else:
+            chunk = {'-ss': helper.seconds_to_time(start)}
         if stop is not None:
-            # -t is "time duration" and not "stop time"!
-            duration = seconds_to_time(stop - start)
-            chunk.extend(('-t', duration))
-        chunk.extend(base_opt)
+            if fps:
+                chunk['-vframes'] = str(stop - start)
+            else:
+                # -t is "time duration" and not "stop time"
+                duration = helper.seconds_to_time(stop - start)
+                chunk['-t'] = duration
+        chunk['other'] = base_opt
         cmd.append(chunk)
     return cmd
 
@@ -118,13 +137,16 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
 
     return cmds
 
-def convert(filename, flavor, base=(), vcodec=av_codec[1], acodec=av_codec[0],
+def convert(filename, flavor, base=None, vcodec=av_codec[1], acodec=av_codec[0],
             ext='mp4', output=None, tool=conv_tool):
     """ Generate commands to convert a video file based on a series of flavors.
 
     :param filename:
     :param base: Part of command with specific configurations to be added
-           after the input element. E.x. seek options, remove audio...
+           after the input element. E.g.: seek options, remove audio...
+           E.g.: {'-x': 'y', ..., 'other': [...]}
+           If FANCY_SEEK is true, the seek option should be added as a
+           `key: value` element.
     :param output: The output filename with a positional formatting `{0}`
            element where the number of the chunk will be placed. If this
            parameter is None, the number will be placed before the extension
@@ -135,7 +157,22 @@ def convert(filename, flavor, base=(), vcodec=av_codec[1], acodec=av_codec[0],
             "resolution": (width, height)}
     :return:
     """
-    cmd = base_cmd(tool, filename) + list(base) + \
+    if base is None:
+        base = {}
+    pre = None
+    post = base.pop('other', [])
+
+    if FANCY_SEEK:
+        ss = '-ss'
+        seek = base.pop(ss, None)
+        if seek:
+            pre = [ss, seek]
+            post.extend((ss, '0'))
+
+    for i in base.iteritems():
+        post.extend(i)
+
+    cmd = base_cmd(tool, filename, pre=pre) + post + \
           ['-strict', 'experimental', '-flags', '+cgop',
            '-vcodec', vcodec, '-acodec', acodec]
 
