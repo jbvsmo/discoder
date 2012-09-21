@@ -60,7 +60,7 @@ def probe(filename, format=True, streams=True, packets=False, json=False, tool=i
     return cmd
 
 def split(length, max_num, min_time, fps=None, time_to_frames=False):
-    """ Create a list of command lines to divide a video file into
+    """ Creates a list of command lines to divide a video file into
         smaller chunks of aproximately same size. This command will
         also remove the audio track.
 
@@ -107,7 +107,7 @@ def split(length, max_num, min_time, fps=None, time_to_frames=False):
     return cmd
 
 def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
-    """ Generate commands for separating mp4 file with only video stream
+    """ Generates commands for separating mp4 file with only video stream
         and a m4a audio file.
 
     :type filename: str
@@ -137,25 +137,33 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
 
     return cmds
 
-def convert(filename, flavor, base=None, vcodec=av_codec[1], acodec=av_codec[0],
-            ext='mp4', output=None, tool=conv_tool):
-    """ Generate commands to convert a video file based on a series of flavors.
+def convert(filename, flavor, base=None, part=None, vcodec=av_codec[1],
+            acodec=av_codec[0], ext='mp4', output=None, tool=conv_tool):
+    """ Generates commands to convert a video file based on a series of flavors.
 
-    :param filename:
+    :type filename: str
+    :param flavor: Dictionary of flavor options to convert a video
+           or list of these dictionaries to convert to many flavors from a
+           single decode. All Optional:
+           {"name": flavor_name,
+            "bitrate": (video_bitrate, audio_bitrate),
+            "resolution": (width, height)}
     :param base: Part of command with specific configurations to be added
            after the input element. E.g.: seek options, remove audio...
            E.g.: {'-x': 'y', ..., 'other': [...]}
            If FANCY_SEEK is true, the seek option should be added as a
            `key: value` element.
+    :param part: Number or other identifier for converting video parts.
+    :param vcodec, acodec: Video and audio codecs (ffmpeg names)
+    :param ext: Video extension for output.
     :param output: The output filename with a positional formatting `{0}`
            element where the number of the chunk will be placed. If this
            parameter is None, the number will be placed before the extension
-           of the filename: file.mp4 -> file_1.mp4, file_2.mp4 ...
-    :param flavor: Dictionary with data to convert a video. All optional.
-           {"name": flavor_name,
-            "bitrate": (video_bitrate, audio_bitrate),
-            "resolution": (width, height)}
-    :return:
+           of the filename: file.mp4 -> file_A.mp4, file_B.mp4 ...
+           A `{1}` element must be given to add an extension name.
+           If `part` parameter is not None, a `{2}` element can be given to
+           add the part value to avoid multiple file with the same name.
+    :return: list<str>
     """
     if base is None:
         base = {}
@@ -176,6 +184,7 @@ def convert(filename, flavor, base=None, vcodec=av_codec[1], acodec=av_codec[0],
           ['-strict', 'experimental', '-flags', '+cgop',
            '-vcodec', vcodec, '-acodec', acodec]
 
+    #TODO: Work with multiple flavors
     bitrate = flavor.get('bitrate')
     if bitrate:
         bv, ba = bitrate
@@ -189,9 +198,12 @@ def convert(filename, flavor, base=None, vcodec=av_codec[1], acodec=av_codec[0],
 
     if output is None:
         name, ext_ = os.path.splitext(filename)
-        output = name + '_{0}.{1}'
+        if part is None:
+            output = name + '_{0}.{1}'
+        else:
+            output = name + '_{0}_{2}.{1}'
 
-    cmd.append(output.format(flavor.get('name', 'orig'), ext))
+    cmd.append(output.format(flavor.get('name', 'orig'), ext, part))
     return cmd
 
 def join_cat(filenames):
