@@ -84,7 +84,8 @@ class Transcoder:
     def split(self, max_num, min_time, frames=False, time_to_frames=False):
         output = None if not self.out else self.out.format('{0}', '{1}')
 
-        vprobe = self.probe().streams[0]
+        probe = self.probe()
+        vprobe = probe.streams[0]
 
         if frames:
             fps = vprobe.r_frame_rate
@@ -93,8 +94,11 @@ class Transcoder:
                 fps = int(a) / int(b)
             else:
                 fps = float(fps)
-
-            duration = int(vprobe.nb_frames)
+            try:
+                duration = int(vprobe.nb_frames)
+            except Exception:
+                time_duration = float(probe.format.duration)
+                duration = int(round(time_duration * fps))
         else:
             fps = None
             duration = int(math.ceil(float(vprobe.duration)))
@@ -103,7 +107,8 @@ class Transcoder:
 
         cmds = []
         for part, base in enumerate(base_cmds):
-            cmds.append(command.convert(self.filename, self.flavors, base, part=part))
+            cmds.append(command.convert(self.filename, self.flavors,
+                                        base, part=part, output=output))
 
         for c in cmds:
             run(c)
