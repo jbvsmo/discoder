@@ -7,6 +7,11 @@ from __future__ import division
 import os.path
 from discoder.lib import helper
 
+try:
+    _ = basestring
+except NameError:
+    basestring = str
+
 __author__ = 'jb'
 __metaclass__ = type
 
@@ -35,8 +40,18 @@ def base_cmd(tool, input, yes=True, pre=None):
         cmd.pop()
     if pre:
         cmd.extend(pre)
-    cmd.extend(('-i', input))
+    if isinstance(input, basestring):
+        input = (input,)
+    for i in input:
+        cmd.extend(add_input(i))
     return cmd
+
+def add_input(filename):
+    """ Add other inputs to ffmpeg (e.g. audio)
+    :param filename: Another input to ffmpeg
+    :return: list<str>
+    """
+    return ['-i', filename]
 
 def probe(filename, format=True, streams=True, packets=False, json=False, tool=info_tool):
     """ Mount the command line for `ffprobe` or `avprobe`.
@@ -221,6 +236,12 @@ def join(filenames, output, base=(), tool=conv_tool):
     cmd.extend(('-c', 'copy', output))
     return cmd
 
+def no_container():
+    """ Part of command to generate a container-free h.264 file
+    :return: list<str>
+    """
+    return ['-bsf:v', 'h264_mp4toannexb']
+
 def remove_container(filenames, ext='h264', tool=conv_tool):
     """ Transform mp4 files as raw h264 files to allow joining them with concat.
 
@@ -230,7 +251,7 @@ def remove_container(filenames, ext='h264', tool=conv_tool):
     :return:list<list<str>>
     """
     _ = 'ffmpeg -i d_orig_0.mp4 -c copy o0.h264'
-    base = ['-c', 'copy', '-bsf:v', 'h264_mp4toannexb']
+    base = ['-c', 'copy'] + no_container()
     cmds = []
     for name in filenames:
         newname, ext_ = os.path.splitext(name)

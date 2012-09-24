@@ -28,6 +28,13 @@ def run(cmd, stdout=None, stderr=None, pipe=True):
         print(cmd)
     return subprocess.Popen(cmd, stdout=stdout, stderr=stderr).communicate()
 
+def run_many(cmds, stdout=None, stderr=None, pipe=True):
+    """ Same as run but for more than one command. Might be replaced by
+        a distributed approach.
+    """
+    for c in cmds:
+        run(c, stdout, stderr, pipe)
+
 class Transcoder:
     _probe = None
 
@@ -79,8 +86,7 @@ class Transcoder:
     def separate(self):
         output = None if not self.out else self.out.format('{0}', '.mp4')
         cmds = command.separate(self.filename, output)
-        for c in cmds:
-            run(c)
+        run_many(cmds)
 
     def split(self, max_num, min_time, frames=False, time_to_frames=False):
         output = None if not self.out else self.out.format('{0}', '{1}')
@@ -105,14 +111,15 @@ class Transcoder:
             duration = int(math.ceil(float(vprobe.duration)))
 
         base_cmds = command.split(duration, max_num, min_time, fps, time_to_frames)
+        no_container = command.no_container()
 
         cmds = []
         for part, base in enumerate(base_cmds):
-            cmds.append(command.convert(self.filename, self.flavors,
-                                        base, part=part, output=output))
+            base['other'] += no_container
+            cmds.append(command.convert(self.filename, self.flavors, base,
+                                        ext='h264', part=part, output=output))
 
-        for c in cmds:
-            run(c)
+        run_many(cmds)
 
         self.parts = [c[-1] for c in cmds]
         return [self.as_t(p) for p in self.parts]
@@ -121,16 +128,11 @@ class Transcoder:
         if not self.parts:
             raise Exception('Nothing to join.')
 
-        cmds = command.remove_container(self.parts)
-        for c in cmds:
-            run(c)
-        names = [c[-1] for c in cmds]
-
         output, ext = os.path.splitext(self.filename)
-        output += '_final' + ext
+        output += '_final.mp4'
 
-        run(command.join(names, output))
+        run(command.join(self.parts, output))
 
         if remove_files:
-            for f in self.parts + names:
+            for f in self.parts:
                 os.remove(f)
