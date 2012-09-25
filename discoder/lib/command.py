@@ -151,17 +151,13 @@ def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
 
     return cmds
 
-def convert(filename, flavor, base=None, part=None, vcodec=av_codec[1],
+def convert(filename, flavors, base=None, part=None, vcodec=av_codec[1],
             acodec=av_codec[0], ext='mp4', output=None, tool=conv_tool):
     """ Generates commands to convert a video file based on a series of flavors.
 
     :type filename: str
-    :param flavor: Dictionary of flavor options to convert a video
-           or list of these dictionaries to convert to many flavors from a
-           single decode. All Optional:
-           {"name": flavor_name,
-            "bitrate": (video_bitrate, audio_bitrate),
-            "resolution": (width, height)}
+    :param flavors: List of `conv.flavor.Flavor` objects to convert a video
+           into many flavors from a single decode.
     :param base: Part of command with specific configurations to be added
            after the input element. E.g.: seek options, remove audio...
            E.g.: {'-x': 'y', ..., 'other': [...]}
@@ -195,33 +191,50 @@ def convert(filename, flavor, base=None, part=None, vcodec=av_codec[1],
     for i in base.iteritems():
         post.extend(i)
 
-    cmd = base_cmd(tool, filename, pre=pre) + post + \
-          ['-strict', 'experimental', '-flags', '+cgop',
-           '-vcodec', vcodec, '-acodec', acodec]
+    cmd = base_cmd(tool, filename, pre=pre)
+    repeat = post + ['-strict', 'experimental', '-flags', '+cgop']
+    names = []
 
-    #TODO: Work with multiple flavors
-    bitrate = flavor.get('bitrate')
-    if bitrate:
-        bv, ba = bitrate
-        cmd.extend(('-b:v', bv, '-b:a', ba))
-    else:
-        cmd.append('-sameq')
+    for flavor in flavors:
 
-    resolution = flavor.get('resolution')
-    if resolution:
-        cmd.extend(('-s', '{0}x{1}'.format(*resolution)))
+        cmd.extend(repeat)
 
-    if output is None:
-        name, ext_ = os.path.splitext(filename)
-        if part is None:
-            output = name + '_{0}.{1}'
+        if flavor.audio:
+            cmd.extend(('-acodec', acodec))
         else:
-            output = name + '_{0}_{2}.{1}'
+            cmd.append('-an')
 
-    cmd.append(output.format(flavor.get('name', 'orig'), ext, part))
-    return cmd
+        if flavor.video:
+            cmd.extend(('-vcodec', vcodec))
+        else:
+            cmd.append('-vn')
 
-def join(filenames, output, base=(), tool=conv_tool):
+        bitrate = flavor.bitrate
+        if flavor.sameq:
+            cmd.append('-sameq')
+        else:
+            if flavor.video and bitrate.video:
+                cmd.extend(('-b:v', bitrate.video))
+            if flavor.audio and bitrate.audio:
+                cmd.extend(('-b:a', bitrate.audio))
+
+        if flavor.resolution:
+            cmd.extend(('-s', '{0.w}x{0.h}'.format(flavor.resolution)))
+
+        if output is None:
+            name, ext_ = os.path.splitext(filename)
+            if part is None:
+                output = name + '_{0}.{1}'
+            else:
+                output = name + '_{0}_{2}.{1}'
+
+        name = output.format(flavor.name, ext, part)
+        cmd.append(name)
+        names.append(name)
+
+    return cmd, names
+
+def join(filenames, output, base=(), audio=None, tool=conv_tool):
     """ Join the mpg files with cat
 
     :type filenames: list
@@ -232,8 +245,15 @@ def join(filenames, output, base=(), tool=conv_tool):
     """
     filenames = 'concat:'  + format('|'.join(filenames))
     cmd = base_cmd(tool, filenames)
+    if audio:
+        cmd.extend(add_input(audio))
+
     cmd.extend(base)
-    cmd.extend(('-c', 'copy', output))
+    cmd.extend(('-vcodec', 'copy'))
+    if audio:
+        cmd.extend(('-acodec', 'copy'))
+
+    cmd.append(output)
     return cmd
 
 def no_container():
@@ -251,7 +271,7 @@ def remove_container(filenames, ext='h264', tool=conv_tool):
     :return:list<list<str>>
     """
     _ = 'ffmpeg -i d_orig_0.mp4 -c copy o0.h264'
-    base = ['-c', 'copy'] + no_container()
+    base = ['-vcodec', 'copy'] + no_container()
     cmds = []
     for name in filenames:
         newname, ext_ = os.path.splitext(name)
