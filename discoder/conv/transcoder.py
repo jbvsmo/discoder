@@ -2,6 +2,7 @@ from __future__ import division
 import os
 import subprocess
 import math
+from discoder.conv.flavor import Flavor
 from discoder.lib import command, parse
 
 __author__ = 'jb'
@@ -38,11 +39,14 @@ def run_many(cmds, stdout=None, stderr=None, pipe=True):
 class Transcoder:
     _probe = None
 
-    def __init__(self, filename, flavors=(), outdir=None):
+    def __init__(self, filename, flavors=(), original=True, outdir=None):
         self.filename = filename
-        self.flavors = flavors
+        self.flavors = list(flavors)
+        if original:
+            self.flavors.append(Flavor.orig())
         self.outdir = outdir
         self.parts = []
+        self.audio_parts = None
         if outdir:
             basename = os.path.basename(filename)
             name, ext = os.path.splitext(basename)
@@ -114,25 +118,30 @@ class Transcoder:
         no_container = command.no_container()
 
         cmds = []
+        all_names = []
         for part, base in enumerate(base_cmds):
             base['other'] += no_container
-            cmds.append(command.convert(self.filename, self.flavors, base,
-                                        ext='h264', part=part, output=output))
+            cmd, names =  command.convert(self.filename, self.flavors, base,
+                                          ext='h264', part=part, output=output)
+            cmds.append(cmd)
+            all_names.append(names)
 
         run_many(cmds)
 
-        self.parts = [c[-1] for c in cmds]
-        return [self.as_t(p) for p in self.parts]
+        self.parts = zip(*all_names)
+        return [[self.as_t(name) for name in part] for part in self.parts]
 
     def join(self, remove_files=True):
         if not self.parts:
             raise Exception('Nothing to join.')
 
-        output, ext = os.path.splitext(self.filename)
-        output += '_final.mp4'
+        for part in self.parts:
+            name = part[0]
+            output, extra = name.rsplit('_', 1)
+            output += '.mp4'
 
-        run(command.join(self.parts, output))
+            run(command.join(part, output))
 
-        if remove_files:
-            for f in self.parts:
-                os.remove(f)
+            if remove_files:
+                for f in part:
+                    os.remove(f)
