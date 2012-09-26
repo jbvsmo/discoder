@@ -92,7 +92,7 @@ class Transcoder:
         cmds = command.separate(self.filename, output)
         run_many(cmds)
 
-    def split(self, max_num, min_time, frames=False, time_to_frames=False):
+    def split(self, max_num, min_time=0, frames=True, time_to_frames=False):
         output = None if not self.out else self.out.format('{0}', '{1}')
 
         probe = self.probe()
@@ -112,7 +112,11 @@ class Transcoder:
                 duration = int(round(time_duration * fps))
         else:
             fps = None
-            duration = int(math.ceil(float(vprobe.duration)))
+            try:
+                duration = float(vprobe.duration)
+            except Exception:
+                duration = float(probe.format.duration)
+            duration = int(math.ceil(duration))
 
         base_cmds = command.split(duration, max_num, min_time, fps, time_to_frames)
         no_container = command.no_container()
