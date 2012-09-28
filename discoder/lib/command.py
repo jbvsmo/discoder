@@ -120,38 +120,32 @@ def split(length, max_num, min_time, fps=None, time_to_frames=False):
         cmd.append(chunk)
     return cmd
 
-def separate(filename, output=None, exts=av_extensions, tool=conv_tool):
-    """ Generates commands for separating mp4 file with only video stream
-        and a m4a audio file.
+def separate(filename, output=None, ext=av_extensions[0], tool=conv_tool):
+    """ Generates commands for separating mp4 file with only audio stream.
 
     :type filename: str
     :param output: The output filename with a positional formatting `{0}`
            element either "audio" or "video" will be placed. Also, a positional
            `{1}` element to add the extensions.
     :type output: str
-    :param exts: Extentions for audio and video files. AAC and MP4 by default
+    :param ext: Extentions for audio. AAC by default
     :type
     :param tool: Transcoding tool. E.g. "ffmpeg"
     :return list<list<str>>
     """
-    a, v = exts
-    base = base_cmd(tool, filename)
-    cmds = []
 
     if output is None:
-        name, ext = os.path.splitext(filename)
+        name, ext_ = os.path.splitext(filename)
         output = name + '_{0}.{1}'
 
     # Remove Video
-    cmds.append(base + ['-acodec', 'copy', '-vn', output.format('audio', a)])
+    return base_cmd(tool, filename) + ['-acodec', 'copy', '-vn', output.format('audio', ext)]
 
     # Remove Audio
     # No need to remove audio
     #cmds.append(base + ['-vcodec', 'copy', '-an', output.format('video', v)])
 
-    return cmds
-
-def convert(filename, flavors, base=None, part=None, vcodec=av_codec[1],
+def convert(filename, flavors, base=None, part=None, threads=None, vcodec=av_codec[1],
             acodec=av_codec[0], ext='mp4', output=None, tool=conv_tool):
     """ Generates commands to convert a video file based on a series of flavors.
 
@@ -178,7 +172,7 @@ def convert(filename, flavors, base=None, part=None, vcodec=av_codec[1],
     """
     if base is None:
         base = {}
-    pre = None
+    pre = []
     post = base.pop('other', [])
 
     if FANCY_SEEK:
@@ -187,6 +181,9 @@ def convert(filename, flavors, base=None, part=None, vcodec=av_codec[1],
         if seek:
             pre = [ss, seek]
             post.extend((ss, '0'))
+
+    if threads:
+        post.extend(('-threads', str(threads)))
 
     for i in base.iteritems():
         post.extend(i)
