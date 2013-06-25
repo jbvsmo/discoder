@@ -7,13 +7,24 @@ VERBOSE = True
 
 DEFAULT_PORT = 7001
 
+RETRY = 10
+
 def get_data(socket):
     """ Get input data with lenght + '\n' as header
     """
     if RECV_TIMEOUT:
         socket.settimeout(RECV_TIMEOUT)
-    data = b''
-    header, data = socket.recv(64).split('\n', 1)
+    val = None
+    r = 0
+    try:
+        for r in range(RETRY):
+            val = socket.recv(64)
+            if val:
+                break
+        header, data = val.split('\n', 1)
+    except (ValueError, TypeError) as e:
+        raise Exception('Invalid data received: {0!r}\n '
+                        'runs: {1}\n err: {2!r}'.format(val, r, e))
     size = int(header)
 
     while len(data) < size:

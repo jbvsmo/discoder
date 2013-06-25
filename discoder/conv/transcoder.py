@@ -1,40 +1,14 @@
 from __future__ import division
 import os
-import subprocess
 import math
+from discoder import proc
 from discoder.conv.flavor import Flavor
 from discoder.lib import command, parse
 
 __author__ = 'jb'
 __metaclass__ = type
 
-DEBUG = True
-
-def run(cmd, stdout=None, stderr=None, pipe=True):
-    """ Run a command in a list of arguments with Popen.
-        returns the stdout and stderr outputs.
-
-        :param cmd:
-        :param stdout:
-        :param stderr:
-        :param pipe:
-        :return:
-    """
-    if pipe:
-        if stdout is None:
-            stdout = subprocess.PIPE
-        if stderr is None:
-            stderr = subprocess.PIPE
-    if DEBUG:
-        print(cmd)
-    return subprocess.Popen(cmd, stdout=stdout, stderr=stderr).communicate()
-
-def run_many(cmds, stdout=None, stderr=None, pipe=True):
-    """ Same as run but for more than one command. Might be replaced by
-        a distributed approach.
-    """
-    for c in cmds:
-        run(c, stdout, stderr, pipe)
+DEBUG = 1
 
 class Transcoder:
     _probe = None
@@ -72,8 +46,8 @@ class Transcoder:
         :param kw: Other kw arguments to `command.probe` function
         :return: Parsed output in a dict
         """
-        if self._probe is None or DEBUG:
-            sout, _ = run(command.probe(self.filename, json=json, **kw))
+        if self._probe is None or DEBUG >= 2:
+            sout, _ = proc.run_local(command.probe(self.filename, json=json, **kw))
             if json:
                 self._probe = json.loads(sout)
             else:
@@ -84,15 +58,17 @@ class Transcoder:
         output = None if not self.out else self.out.format('{0}', '{1}')
         cmd = command.convert(self.filename, {}, output=output)
         if convert:
-            run(cmd)
+            proc.run_local(cmd)
         return self.as_t(cmd[-1])
 
     def separate(self):
-        output = None if not self.out else self.out.format('{0}', '.mp4')
-        cmds = command.separate(self.filename, output)
-        run_many(cmds)
+        output = None if not self.out else self.out.format('{0}', '.m4a')
+        cmd = command.separate(self.filename, output)
+        proc.run_local(cmd)
+        self.audio_parts = [cmd[-1] for i in range(len(self.flavors))]
 
-    def split(self, max_num, min_time=0, frames=True, time_to_frames=False):
+    def split(self, max_num, min_time=0, frames=True, time_to_frames=False,
+              threads=None, runner=proc.run_many):
         output = None if not self.out else self.out.format('{0}', '{1}')
 
         probe = self.probe()
@@ -125,27 +101,31 @@ class Transcoder:
         all_names = []
         for part, base in enumerate(base_cmds):
             base['other'] += no_container
-            cmd, names =  command.convert(self.filename, self.flavors, base,
-                                          ext='h264', part=part, output=output)
+            cmd, names =  command.convert(self.filename, self.flavors, base, ext='h264',
+                                          part=part, threads=threads, output=output)
             cmds.append(cmd)
             all_names.append(names)
 
-        run_many(cmds)
+        if runner:
+            runner(cmds)
 
         self.parts = zip(*all_names)
-        return [[self.as_t(name) for name in part] for part in self.parts]
+        return cmds
 
     def join(self, remove_files=True):
         if not self.parts:
             raise Exception('Nothing to join.')
 
-        for part in self.parts:
+        for part, audio in zip(self.parts, self.audio_parts):
             name = part[0]
             output, extra = name.rsplit('_', 1)
             output += '.mp4'
 
-            run(command.join(part, output))
+            proc.run_local(command.join(part, output, audio=audio))
 
             if remove_files:
                 for f in part:
                     os.remove(f)
+
+        if remove_files and self.audio_parts:
+            os.remove(self.audio_parts[0])

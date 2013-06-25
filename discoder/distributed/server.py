@@ -1,5 +1,5 @@
 from __future__ import print_function
-from multiprocessing import Pool
+import multiprocessing
 import pprint
 import socket
 from discoder.distributed import send_data, get_data
@@ -23,11 +23,11 @@ def load_client(arguments):
 def run(nodes, args):
     """ Connect to clients using multiple processes.
     """
-    print('Connecting to nodes:')
-    print(*('\t{0}:{1}'.format(*i) for i in nodes), sep='\n')
+    #print('Connecting to nodes:')
+    #print(*('\t{0}:{1}'.format(*i) for i in nodes), sep='\n')
     #pprint.pprint(args, width=200)
-    print('Command:', len(args))
+    #print('Command:', len(args))
 
-    pool = Pool(len(nodes))
+    pool = multiprocessing.Pool(len(nodes))
     out = pool.map(load_client, zip(nodes, args))
     return out
