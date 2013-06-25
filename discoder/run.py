@@ -47,6 +47,7 @@ def letters():
     for x in range(ord('A'), ord('Z')+1):
         yield chr(x)
 
+
 def get_nodes():
     """ Get nodes list from file.
     """
@@ -55,8 +56,10 @@ def get_nodes():
         data = f.read().splitlines()
     return [distributed.parse_address(i) for i in data]
 
+
 all_nodes = get_nodes()
 run_nodes = all_nodes
+
 
 def node(opt):
     """ Start client node and wait for requests.
@@ -116,6 +119,7 @@ def cluster(opt):
         print(' ->', round(time, 2), 'sec')
     print()
 
+
 def cluster_(opt):
     video = Transcoder(opt.input, opt.flavor)
 
@@ -157,6 +161,7 @@ def cluster_(opt):
         f.write(str(data))
 
     return timer.get(-1)
+
 
 def probe(opt):
     opt, _ = opt

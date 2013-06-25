@@ -11,8 +11,7 @@ root = os.path.dirname(os.path.dirname(root))
 sys.path.insert(0, root)
 import optparse
 from discoder import distributed
-
-import run
+from discoder import run
 
 __author__ = 'jb'
 
