@@ -1,4 +1,7 @@
-import SocketServer
+try:
+    import SocketServer as socketserver
+except ImportError:
+    import socketserver
 from multiprocessing import Pool
 import time
 from discoder.distributed import get_data, send_data
@@ -8,7 +11,7 @@ from discoder.proc import run_local
 __author__ = 'jb'
 
 
-class ClientTCPHandler(SocketServer.BaseRequestHandler):
+class ClientTCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         """ Get input data with lenght + '\n' and process it
         """
@@ -24,7 +27,7 @@ def start(port):
     """ Open socket server and waits to remote command.
     """
     host = '0.0.0.0'
-    server = SocketServer.TCPServer((host, port), ClientTCPHandler)
+    server = socketserver.TCPServer((host, port), ClientTCPHandler)
     try:
         print('Running client on {0}:{1}'.format(host, port))
         server.serve_forever()

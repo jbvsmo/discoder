@@ -33,12 +33,7 @@ class CommandTest(unittest.TestCase):
 
     def test_separate(self):
         cmd = command.separate('test.mp4', tool=tool)
-        self.assertEqual(len(cmd), 1) #only the audio
 
-        a, = cmd
-        self.assertEqual(a[0], tool)
-        #self.assertEqual(v[0], tool)
-
-        self.assertEqual(a[-1], 'test_audio.m4a')
-        #self.assertEqual(v[-1], 'test_video.mp4')
+        self.assertEqual(cmd[0], tool)
+        self.assertEqual(cmd[-1], 'test_audio.m4a')
 
