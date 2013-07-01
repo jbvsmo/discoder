@@ -6,10 +6,9 @@
 from __future__ import division
 import os.path
 from discoder.lib import helper
+import sys
 
-try:
-    _ = basestring
-except NameError:
+if sys.version_info >= (3, 0):
     basestring = str
 
 __author__ = 'jb'
@@ -22,7 +21,7 @@ FANCY_SEEK = False
 conv_tool = 'ffmpeg'
 info_tool = 'ffprobe'
 av_extensions = 'm4a', 'mp4'
-av_codec = 'aac', 'libx264'
+av_codec = 'libfdk_aac', 'libx264'
 
 def base_cmd(tool, input, yes=True, pre=None):
     """ Basic command for transcoding tool (`ffmpeg` or `avconv`).
@@ -146,7 +145,7 @@ def separate(filename, output=None, ext=av_extensions[0], tool=conv_tool):
     #cmds.append(base + ['-vcodec', 'copy', '-an', output.format('video', v)])
 
 def convert(filename, flavors, base=None, part=None, threads=None, vcodec=av_codec[1],
-            acodec=av_codec[0], ext='mp4', output=None, tool=conv_tool):
+            acodec=av_codec[0], ext='mp4', output=None, audio=True, tool=conv_tool):
     """ Generates commands to convert a video file based on a series of flavors.
 
     :type filename: str
@@ -189,14 +188,14 @@ def convert(filename, flavors, base=None, part=None, threads=None, vcodec=av_cod
         post.extend(i)
 
     cmd = base_cmd(tool, filename, pre=pre)
-    repeat = post + ['-strict', 'experimental', '-flags', '+cgop']
+    repeat = post #+ ['-strict', 'experimental', '-flags', '+cgop']
     names = []
 
     for flavor in flavors:
 
         cmd.extend(repeat)
 
-        if flavor.audio:
+        if flavor.audio and audio:
             cmd.extend(('-acodec', acodec))
         else:
             cmd.append('-an')
@@ -208,7 +207,7 @@ def convert(filename, flavors, base=None, part=None, threads=None, vcodec=av_cod
 
         bitrate = flavor.bitrate
         if flavor.sameq:
-            cmd.append('-sameq')
+            cmd.extend(['-crf', '23'])
         else:
             if flavor.video and bitrate.video:
                 cmd.extend(('-b:v', bitrate.video))

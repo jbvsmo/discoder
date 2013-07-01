@@ -56,7 +56,7 @@ class Transcoder:
 
     def conv_original(self, convert=True):
         output = None if not self.out else self.out.format('{0}', '{1}')
-        cmd = command.convert(self.filename, {}, output=output)
+        cmd = command.convert(self.filename, {}, output=output, audio=False)
         if convert:
             proc.run_local(cmd)
         return self.as_t(cmd[-1])
@@ -102,7 +102,7 @@ class Transcoder:
         for part, base in enumerate(base_cmds):
             base['other'] += no_container
             cmd, names =  command.convert(self.filename, self.flavors, base, ext='h264',
-                                          part=part, threads=threads, output=output)
+                                          part=part, threads=threads, output=output, audio=False)
             cmds.append(cmd)
             all_names.append(names)
 
