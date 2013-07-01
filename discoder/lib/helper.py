@@ -3,6 +3,19 @@ import itertools as it
 
 __author__ = 'jb'
 
+
+def star(fn):
+    """ Decorate a function to receive a single argument and expand
+        to multiple arguments. This is specially useful for mapping
+        functions that can only send a single argmument. E.g.:
+        `multiprocessing.Pool.map`.
+
+    :param fn: Function to be decorated
+    """
+    def _star_args_fn(args):
+        return fn(*args)
+    return _star_args_fn
+
 def seconds_to_time(num, ms=0):
     """ Convert a number of seconds to time in the "hh:mm:ss.xxx" format
         where "xxx" is the number of milliseconds or zero if not given.

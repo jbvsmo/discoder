@@ -6,7 +6,7 @@ RECV_TIMEOUT = None
 VERBOSE = True
 
 DEFAULT_PORT = 7001
-
+ENCODING = 'utf-8'
 RETRY = 10
 
 def get_data(socket):
@@ -18,7 +18,7 @@ def get_data(socket):
     r = 0
     try:
         for r in range(RETRY):
-            val = socket.recv(64)
+            val = socket.recv(64).decode(ENCODING)
             if val:
                 break
         header, data = val.split('\n', 1)
@@ -28,7 +28,7 @@ def get_data(socket):
     size = int(header)
 
     while len(data) < size:
-        data += socket.recv(1024)
+        data += socket.recv(1024).decode(ENCODING)
         if not data:
             break
     return json.loads(data)
@@ -37,7 +37,7 @@ def get_data(socket):
 def send_data(socket, data):
     data = json.dumps(data)
     data = '{0}\n{1}'.format(len(data), data)
-    socket.sendall(data)
+    socket.sendall(data.encode(ENCODING))
 
 
 def parse_address(addr, default=DEFAULT_PORT):
