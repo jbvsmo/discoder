@@ -112,15 +112,17 @@ def cluster(opt):
         print('Using fancy seek.')
     if opt.remove:
         print('All temporary files will be removed.')
+    if opt.balance:
+        print('Load balancing is on.')
 
     for t in range(1, opt.times + 1):
         print('Run #{0}'.format(t), end='')
-        time = cluster_(opt)
+        time = _cluster_run(opt)
         print(' ->', round(time, 2), 'sec')
     print()
 
 
-def cluster_(opt):
+def _cluster_run(opt):
     video = Transcoder(opt.input, opt.flavor)
 
     timer = Time().add('Start')
@@ -133,13 +135,10 @@ def cluster_(opt):
 
     # Split
     cmds = video.split(opt.parts, threads=opt.threads, runner=None)
-    n = opt.parts // opt.nodes
-    parts = [cmds[i:i+n] for i in range(0, len(cmds), n)]
-
     nodes = run_nodes[:opt.nodes]
     timer.add('Split information')
 
-    data = server.run(nodes, parts)
+    data = server.run(nodes, cmds, opt.balance)
     timer.add('Split running')
 
     video.join(opt.remove) #LOCAL
