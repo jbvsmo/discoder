@@ -184,7 +184,7 @@ def convert(filename, flavors, base=None, part=None, threads=None, vcodec=av_cod
     if threads:
         post.extend(('-threads', str(threads)))
 
-    for i in base.iteritems():
+    for i in base.items():
         post.extend(i)
 
     cmd = base_cmd(tool, filename, pre=pre)

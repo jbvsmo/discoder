@@ -48,6 +48,7 @@ class Transcoder:
         """
         if self._probe is None or DEBUG >= 2:
             sout, _ = proc.run_local(command.probe(self.filename, json=json, **kw))
+            sout = sout.decode()
             if json:
                 self._probe = json.loads(sout)
             else:

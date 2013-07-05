@@ -10,19 +10,24 @@ from discoder.proc import run_local
 
 __author__ = 'jb'
 
+TH_COUNT = 0
 
 class ClientTCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         """ Get input data with lenght + '\n' and process it
         """
+        global TH_COUNT
         #print('Conected...')
-
+        TH_COUNT += 1
+        print('TH_COUNT in = ' + str(TH_COUNT))
         data = get_data(self.request)
         pool = Pool(len(data))
         out = pool.map(run_proc, data)
         pool.close()
         print(out)
         send_data(self.request, out)
+        TH_COUNT -= 1
+        print('TH_COUNT out = ' + str(TH_COUNT))
 
         #print('Done!')
 
@@ -35,7 +40,7 @@ def start(port):
     while True:
         try:
             server = socketserver.ThreadingTCPServer((host, port), ClientTCPHandler)
-        except OSError:
+        except IOError:
             print('Trying to listen on {0}:{1}'.format(host, port))
             time.sleep(5)
         else:
