@@ -6,9 +6,21 @@ except ImportError:
     use_setuptools()
     from setuptools import setup
 
+py_version = sys.version_info[:2]
+
 install_requires = [
     'numpy >= 1.7',
 ]
+
+if py_version < (3, 0):
+    install_requires += [
+        'python-daemon',
+    ]
+
+if py_version < (3, 2):
+    install_requires += [
+        'futures',
+    ]
 
 setup(
     name='discoder',

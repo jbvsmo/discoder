@@ -2,7 +2,7 @@ try:
     import SocketServer as socketserver
 except ImportError:
     import socketserver
-from multiprocessing import Pool
+from multiprocessing.dummy import Pool
 import time
 from discoder.distributed import get_data, send_data
 from discoder.proc import run_local
@@ -18,7 +18,9 @@ class ClientTCPHandler(socketserver.BaseRequestHandler):
         #print('Conected...')
 
         data = get_data(self.request)
-        out = Pool(len(data)).map(run_proc, data)
+        pool = Pool(len(data))
+        out = pool.map(run_proc, data)
+        pool.close()
         print(out)
         send_data(self.request, out)
 

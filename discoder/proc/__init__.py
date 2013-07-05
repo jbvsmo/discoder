@@ -3,6 +3,7 @@ import subprocess
 __author__ = 'jb'
 
 DEBUG = False
+#DEBUG = True
 
 def run_local(cmd, stdout=None, stderr=None, pipe=True):
     """ Run a command in a list of arguments with Popen.
@@ -20,7 +21,7 @@ def run_local(cmd, stdout=None, stderr=None, pipe=True):
         if stderr is None:
             stderr = subprocess.PIPE
     if DEBUG:
-        print(cmd)
+        print(' '.join(cmd))
     return subprocess.Popen(cmd, stdout=stdout, stderr=stderr).communicate()
 
 def run_many(cmds, stdout=None, stderr=None, pipe=True, run=run_local):
