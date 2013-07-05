@@ -9,6 +9,7 @@ from discoder.lib.helper import star
 
 __author__ = 'jb'
 
+QUEUE_LOCK = threading.Lock()
 
 def load_client(client, cmd):
     """ Open socket and write command to be executed remotely
@@ -39,8 +40,9 @@ class LoadBalancer(object):
         def queue_run():
             while True:
                 try:
-                    cmd = self.queue.get_nowait()
-                except Exception:
+                    with QUEUE_LOCK:
+                        cmd = self.queue.get_nowait()
+                except Exception as e:
                     break
                 done[cmd.pos] = load_client(client, [cmd.data])
 
@@ -78,16 +80,19 @@ def run(nodes, args, balance=False):
     #print('Command:', len(args))
 
     nnodes = len(nodes)
-    pool = multiprocessing.dummy.Pool()
+    pool = multiprocessing.dummy.Pool(nnodes)
     if balance:
         args = [CommandInfo(i, x) for i, x in enumerate(args)]
-        queue = multiprocessing.Queue()
+        queue = multiprocessing.Queue(maxsize=len(args))
         for el in args:
-            queue.put(el)
+            queue.put(el, block=True)
         parts = [balance for _ in range(nnodes)]
         out = pool.map(star(LoadBalancer(queue).run), zip(nodes, parts))
-        return dicts_to_list(out)
+        out = dicts_to_list(out)
+    else:
+        n = len(args) // nnodes
+        parts = [args[i:i+n] for i in range(0, n * nnodes, n)]
+        out = pool.map(star(load_client), zip(nodes, parts))
 
-    n = len(args) // nnodes
-    parts = [args[i:i+n] for i in range(0, n * nnodes, n)]
-    return pool.map(star(load_client), zip(nodes, parts))
+    pool.close()
+    return out
