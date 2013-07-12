@@ -43,6 +43,7 @@ def cmd(name):
         parser.add_option('-r', '--remove', dest='remove', default=False, action="store_true")
         parser.add_option('--fancy-seek', dest='fancy_seek', default=False, action="store_true")
         parser.add_option('-b', '--balance', dest='balance', type='int', default=0)
+        parser.add_option('--balance-order', dest='balance_order', default=False, action="store_true")
     elif name == 'node':
         parser.add_option('-d', '--daemon', dest='daemon', default=False, action="store_true")
         parser.add_option('-p', '--port', dest='port', default=distributed.DEFAULT_PORT, type='int')

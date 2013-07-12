@@ -10,6 +10,8 @@ from discoder.lib.helper import star
 __author__ = 'jb'
 
 QUEUE_LOCK = threading.Lock()
+KEEP_BALANCE_ORDER = False
+
 
 def load_client(client, cmd):
     """ Open socket and write command to be executed remotely
@@ -36,19 +38,25 @@ class LoadBalancer(object):
         self.queue = queue
 
     def run(self, client, num):
-        done = {}
-        def queue_run():
+        done = []
+        lock = threading.Lock()
+
+        def queue_run(n):
+            with lock:
+                done_thread = []
+                done.append(done_thread)
             while True:
                 try:
                     with QUEUE_LOCK:
                         cmd = self.queue.get_nowait()
-                except Exception as e:
+                except Exception:
                     break
-                done[cmd.pos] = load_client(client, [cmd.data])
+                res = load_client(client, [cmd.data])[0]
+                done_thread.append([cmd.pos, res])
 
         ths = []
         for x in range(num):
-            th = threading.Thread(target=queue_run)
+            th = threading.Thread(target=queue_run, args=(x,))
             th.daemon = True
             th.start()
             ths.append(th)
@@ -58,14 +66,26 @@ class LoadBalancer(object):
         return done
 
 
-def dicts_to_list(dicts):
-    """ Convert a list of dictionaries of numbers to a single list
-        of their values sorted by keys. Repeated keys will be overwritten.
-    :param dicts: list of dicts
+def list_numeric_order(data):
+    """ Convert a list of balance outputs and put then in numerical segment order.
+        [
+            [
+                [ [1, X1], [3, X3] ],
+                [ [0, X0], [5, X5] ],
+            ],
+            [
+                [ [2, X2], [7, X7] ],
+                [ [4, X4], [6, X6] ],
+            ],
+        ]
+        Output:
+        [X0, X1, X2, X3, X4, X5, X6, X7]
+    :param data: 4-Dimensional list
     :return: list
     """
     dic = {}
-    for d in dicts:
+    for d in data:
+        d = [x for sub in d for x in sub]
         dic.update(d)
     return [val for key, val in sorted(dic.items())]
 
@@ -88,11 +108,13 @@ def run(nodes, args, balance=False):
             queue.put(el, block=True)
         parts = [balance for _ in range(nnodes)]
         out = pool.map(star(LoadBalancer(queue).run), zip(nodes, parts))
-        out = dicts_to_list(out)
+        if not KEEP_BALANCE_ORDER:
+            out = list_numeric_order(out)
     else:
         n = len(args) // nnodes
+        # noinspection PyArgumentList
         parts = [args[i:i+n] for i in range(0, n * nnodes, n)]
         out = pool.map(star(load_client), zip(nodes, parts))
 
-    pool.close()
+    #pool.close()
     return out

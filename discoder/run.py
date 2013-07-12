@@ -4,7 +4,9 @@ from __future__ import print_function, division
 import collections
 import os
 import pprint
+import string
 import time
+import sys
 
 from discoder.conv.transcoder import Transcoder
 from discoder.conv.flavor import Flavor
@@ -18,7 +20,10 @@ __author__ = 'jb'
 
 TimeDescription = collections.namedtuple('TimeDescription', ['time', 'desc'])
 
+
 class Time(list):
+
+    # noinspection PyTypeChecker
     def add(self, desc=None):
         self.append(TimeDescription(time.time(), desc))
         return self
@@ -37,15 +42,17 @@ class Time(list):
         data = [
             t.format(self[0], self[0].time)
         ]
-        for i,x in enumerate(self[1:], 1):
+        for i, x in enumerate(self[1:], 1):
             data.append(t.format(x, self.get(i)))
 
         return '\n'.join(data)
 
 
 def letters():
-    for x in range(ord('A'), ord('Z')+1):
-        yield chr(x)
+    try:
+        return string.ascii_uppercase
+    except AttributeError:
+        return string.uppercase
 
 
 def get_nodes():
@@ -66,7 +73,8 @@ def node(opt):
     """
     opt, _ = opt
     if opt.daemon:
-        #noinspection PyUnresolvedReferences
+        # noinspection PyPackageRequirements
+        # noinspection PyUnresolvedReferences
         import daemon
         with daemon.DaemonContext():
             client.start(opt.port)
@@ -84,8 +92,8 @@ def cluster(opt):
     global run_nodes
     run_nodes = all_nodes[opt.first_node:] + all_nodes[:opt.first_node]
 
-
     command.FANCY_SEEK = opt.fancy_seek
+    server.KEEP_BALANCE_ORDER = opt.balance_order
 
     flavors = []
     for fl, name in zip(opt.flavor, letters()):
@@ -115,10 +123,11 @@ def cluster(opt):
     if opt.balance:
         print('Load balancing is on.')
 
-    for t in range(1, opt.times + 1):
-        print('Run #{0}'.format(t), end='')
+    for t in range(opt.times):
+        print('Run #{0}... '.format(t + 1), end='')
+        sys.stdout.flush()
         time = _cluster_run(opt)
-        print(' ->', round(time, 2), 'sec')
+        print('-> {0:.2f} sec'.format(time))
     print()
 
 
@@ -130,7 +139,7 @@ def _cluster_run(opt):
     video.probe()
     timer.add('Probe time')
 
-    video.separate() #LOCAL
+    video.separate()  # LOCAL
     timer.add('Get audio')
 
     # Split
@@ -141,7 +150,7 @@ def _cluster_run(opt):
     data = server.run(nodes, cmds, opt.balance)
     timer.add('Split running')
 
-    video.join(opt.remove) #LOCAL
+    video.join(opt.remove)  # LOCAL
     timer.add('Join')
     timer.add('Total time')
 
