@@ -83,10 +83,10 @@ The software was developed at "Laboratório de Computação Paralela e Sistemas 
 Contact:
 -------
 
-João Bernardo Vianna Oliveira - <jbvsmo@gmail.com>
-Lauro Whately - <whately@compasso.ufrj.br>
-Diego Dutra - <diegodutra@compasso.ufrj.br>
-Claudio Amorim - <amorim@compasso.ufrj.br>
+* João Bernardo Vianna Oliveira - <jbvsmo@gmail.com>
+* Lauro Whately - <whately@compasso.ufrj.br>
+* Diego Dutra - <diegodutra@compasso.ufrj.br>
+* Claudio Amorim - <amorim@compasso.ufrj.br>
 
 
 [1]: http://monografias.poli.ufrj.br/monografias/monopoli10008915.pdf
